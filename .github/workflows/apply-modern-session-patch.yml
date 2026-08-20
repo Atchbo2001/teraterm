@@ -8,13 +8,19 @@ on:
     paths:
       - .github/workflows/apply-modern-session-patch.yml
       - tools/fork/apply_modern_session_patch.py
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-modern-session-patch.yml
+      - tools/fork/apply_modern_session_patch.py
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.repository == 'Atchbo2001/teraterm'
+    if: github.repository == 'Atchbo2001/teraterm' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v5
