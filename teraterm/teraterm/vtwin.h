@@ -30,10 +30,10 @@
 /* TERATERM.EXE, VT window */
 
 #include "addsetting.h"
-#include "session_state.h"
-#include "session_bar.h"
 
 #ifdef __cplusplus
+#include "session_state.h"
+#include "session_bar.h"
 #include "tipwin.h"
 #include "tmfc.h"
 #include "unicode_test.h"
