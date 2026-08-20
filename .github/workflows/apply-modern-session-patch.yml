@@ -35,7 +35,7 @@ jobs:
       - name: Validate changed files
         shell: bash
         run: |
-          git diff --check
+          git -c core.whitespace=cr-at-eol diff --check
           git diff -- teraterm/teraterm/vtwin.cpp teraterm/ttpset/ttset.c
           git diff --quiet -- teraterm/teraterm/vtwin.cpp teraterm/ttpset/ttset.c && {
             echo 'Expected source changes were not produced.' >&2
