@@ -10,6 +10,7 @@ PROJECT_DIR = ROOT / "teraterm" / "teraterm"
 # Regression guards for C/C++ compatibility and switch scopes introduced by Boooyah session state.
 # IdComEndTimer initializes C++ disconnect state, so its switch arm must remain explicitly braced.
 # The native Windows projects must also compile session_bar.cpp or vtwin.cpp links with unresolved SessionBar symbols.
+# Keep this guard on the PR-authored head so GitHub runs the real Windows checks after bot source integration.
 
 def main() -> int:
     header = VTWIN_H.read_text(encoding="utf-8-sig")
