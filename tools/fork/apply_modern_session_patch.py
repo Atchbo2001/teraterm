@@ -1,190 +1,104 @@
 from __future__ import annotations
 
 import pathlib
-import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
-def read_text_preserve_newlines(path: pathlib.Path) -> str:
+def read_text(path: pathlib.Path) -> str:
     with path.open("r", encoding="utf-8-sig", newline="") as f:
         return f.read()
 
 
-def write_text_preserve_newlines(path: pathlib.Path, text: str) -> None:
+def write_text(path: pathlib.Path, text: str) -> None:
     with path.open("w", encoding="utf-8", newline="") as f:
         f.write(text)
 
 
-def replace_once(text: str, old: str, new: str, label: str) -> str:
-    count = text.count(old)
-    if count == 0:
-        if new in text:
-            return text
-        raise RuntimeError(f"{label}: expected source text not found")
-    if count != 1:
-        raise RuntimeError(f"{label}: expected one match, found {count}")
-    return text.replace(old, new, 1)
+def replace_if_present(text: str, old: str, new: str) -> str:
+    if old in text:
+        return text.replace(old, new, 1)
+    return text
 
 
 def patch_vtwin_header() -> None:
     path = ROOT / "teraterm" / "teraterm" / "vtwin.h"
-    text = read_text_preserve_newlines(path)
+    text = read_text(path)
     nl = "\r\n" if "\r\n" in text else "\n"
 
-    text = replace_once(
-        text,
-        f'#include "addsetting.h"{nl}',
-        f'#include "addsetting.h"{nl}#include "session_state.h"{nl}',
-        "vtwin session state include",
-    )
+    include = f'#include "session_state.h"{nl}'
+    if include not in text:
+        anchor = f'#include "addsetting.h"{nl}'
+        if anchor not in text:
+            raise RuntimeError("vtwin.h include anchor missing")
+        text = text.replace(anchor, anchor + include, 1)
 
-    text = replace_once(
-        text,
-        f'\tBOOL isClosing;\t\t// TRUE=ウィンドウクローズ中(WM_DESTROYを受信した){nl}',
-        nl.join([
-            "\tBOOL isClosing;\t\t// TRUE=ウィンドウクローズ中(WM_DESTROYを受信した)",
-            "\tSessionState session_state_ = SessionState::Idle;",
-            "\tDisconnectOrigin pending_disconnect_origin_ = DisconnectOrigin::None;",
-            "",
-        ]),
-        "per-window session fields",
-    )
+    fields = nl.join([
+        "\tSessionState session_state_ = SessionState::Idle;",
+        "\tDisconnectOrigin pending_disconnect_origin_ = DisconnectOrigin::None;",
+    ])
+    if fields not in text:
+        anchor = f'\tBOOL isClosing;\t\t// TRUE=ウィンドウクローズ中(WM_DESTROYを受信した){nl}'
+        if anchor not in text:
+            raise RuntimeError("vtwin.h state anchor missing")
+        text = text.replace(anchor, anchor + fields + nl, 1)
 
-    text = replace_once(
+    text = replace_if_present(
         text,
         f'\tvoid Disconnect(BOOL confirm);{nl}',
         f'\tvoid Disconnect(BOOL confirm, DisconnectOrigin origin = DisconnectOrigin::UserRequested);{nl}',
-        "disconnect origin signature",
     )
-
-    write_text_preserve_newlines(path, text)
+    write_text(path, text)
 
 
 def patch_vtwin() -> None:
     path = ROOT / "teraterm" / "teraterm" / "vtwin.cpp"
-    text = read_text_preserve_newlines(path)
+    text = read_text(path)
     nl = "\r\n" if "\r\n" in text else "\n"
 
-    include_anchor = f'#include "ttdup.h"{nl}'
-    include_new = f'#include "ttdup.h"{nl}#include "session_state.h"{nl}'
-    text = replace_once(text, include_anchor, include_new, "session_state include")
-
-    stock_pattern = re.compile(
-        r'''\t\t\tif \(\(PortType==IdTCPIP\) &&\r?\n'''
-        r'''\t\t\t\t\(ts\.AutoWinClose>0\) &&\r?\n'''
-        r'''\t\t\t\t::IsWindowEnabled\(HVTWin\) &&\r?\n'''
-        r'''\t\t\t\t\(\(HTEKWin==NULL\) \|\| ::IsWindowEnabled\(HTEKWin\)\) \) \{\r?\n'''
-        r'''\t\t\t\tOnClose\(\);\r?\n'''
-        r'''\t\t\t\}\r?\n'''
-        r'''\t\t\telse \{\r?\n'''
-        r'''\t\t\t\tChangeTitle\(\);\r?\n'''
-        r'''\t\t\t\tif \(ts\.ClearScreenOnCloseConnection\) \{\r?\n'''
-        r'''\t\t\t\t\tOnEditClearScreen\(\);\r?\n'''
-        r'''\t\t\t\t\}\r?\n'''
-        r'''\t\t\t\}'''
-    )
-
-    bootstrap_replacement = nl.join([
-        "\t\t\t// A transport ending must never destroy the terminal window.",
-        "\t\t\t// Preserve TCP/SSH scrollback and move into a recoverable disconnected state.",
-        "\t\t\tif (PortType == IdTCPIP) {",
-        "\t\t\t\tconst SessionTransition transition = HandleDisconnect(",
-        "\t\t\t\t\tConnecting ? SessionState::Connecting : SessionState::Connected,",
-        "\t\t\t\t\tDisconnectOrigin::RemoteOrNetwork);",
-        "\t\t\t\t(void)transition;",
-        "\t\t\t}",
-        "\t\t\tChangeTitle();",
-        "\t\t\tif (PortType != IdTCPIP && ts.ClearScreenOnCloseConnection) {",
-        "\t\t\t\tOnEditClearScreen();",
-        "\t\t\t}",
-    ])
-
-    if "A transport ending must never destroy the terminal window." not in text:
-        text, count = stock_pattern.subn(lambda _m: bootstrap_replacement, text, count=1)
-        if count != 1:
-            raise RuntimeError(f"disconnect close block: expected one match, found {count}")
-
-    old_transition = nl.join([
-        "\t\t\tif (PortType == IdTCPIP) {",
-        "\t\t\t\tconst SessionTransition transition = HandleDisconnect(",
-        "\t\t\t\t\tConnecting ? SessionState::Connecting : SessionState::Connected,",
-        "\t\t\t\t\tDisconnectOrigin::RemoteOrNetwork);",
-        "\t\t\t\t(void)transition;",
-        "\t\t\t}",
-    ])
-    new_transition = nl.join([
-        "\t\t\tconst DisconnectOrigin origin = ConsumeDisconnectOrigin(",
-        "\t\t\t\t&pending_disconnect_origin_, DisconnectOrigin::RemoteOrNetwork);",
-        "\t\t\tconst SessionTransition transition = HandleDisconnect(session_state_, origin);",
-        "\t\t\tsession_state_ = transition.next;",
-    ])
-    text = replace_once(text, old_transition, new_transition, "stored disconnect transition")
-
-    old_open_state = nl.join([
-        "\tCommStart(&cv,lParam,&ts);",
-        "\tif (ts.PortType == IdTCPIP && cv.RetryWithOtherProtocol == TRUE) {",
-        "\t\tConnecting = TRUE;",
-        "\t}",
-        "\telse {",
-        "\t\tConnecting = FALSE;",
-        "\t}",
-    ])
-    new_open_state = nl.join([
-        "\tCommStart(&cv,lParam,&ts);",
-        "\tif (ts.PortType == IdTCPIP && cv.RetryWithOtherProtocol == TRUE) {",
-        "\t\tConnecting = TRUE;",
-        "\t\tsession_state_ = SessionState::Connecting;",
-        "\t}",
-        "\telse {",
-        "\t\tConnecting = FALSE;",
-        "\t\tsession_state_ = SessionState::Connected;",
-        "\t}",
-    ])
-    text = replace_once(text, old_open_state, new_open_state, "connection state tracking")
-
-    text = replace_once(
-        text,
-        f'void CVTWindow::Disconnect(BOOL confirm){nl}',
-        f'void CVTWindow::Disconnect(BOOL confirm, DisconnectOrigin origin){nl}',
-        "disconnect implementation signature",
-    )
-
-    post_close = f'\t::PostMessage(HVTWin, WM_USER_COMMNOTIFY, 0, FD_CLOSE);{nl}'
-    tracked_close = nl.join([
-        "\tpending_disconnect_origin_ = origin;",
-        "\tsession_state_ = SessionState::Disconnecting;",
-        "\t::PostMessage(HVTWin, WM_USER_COMMNOTIFY, 0, FD_CLOSE);",
-        "",
-    ])
-    text = replace_once(text, post_close, tracked_close, "disconnect origin tracking")
+    include = f'#include "session_state.h"{nl}'
+    while include + include in text:
+        text = text.replace(include + include, include, 1)
+    if include not in text:
+        anchor = f'#include "ttdup.h"{nl}'
+        if anchor not in text:
+            raise RuntimeError("vtwin.cpp include anchor missing")
+        text = text.replace(anchor, anchor + include, 1)
 
     text = text.replace(
         "vtwin_->Disconnect(TRUE);",
         "vtwin_->Disconnect(TRUE, DisconnectOrigin::RemoteOrNetwork);",
     )
+    text = replace_if_present(
+        text,
+        f'void CVTWindow::Disconnect(BOOL confirm){nl}',
+        f'void CVTWindow::Disconnect(BOOL confirm, DisconnectOrigin origin){nl}',
+    )
 
-    write_text_preserve_newlines(path, text)
+    required = [
+        "ConsumeDisconnectOrigin(",
+        "session_state_ = transition.next;",
+        "pending_disconnect_origin_ = origin;",
+        "session_state_ = SessionState::Disconnecting;",
+        "session_state_ = SessionState::Connected;",
+        "Disconnect(TRUE, DisconnectOrigin::RemoteOrNetwork)",
+        "PortType != IdTCPIP && ts.ClearScreenOnCloseConnection",
+    ]
+    missing = [item for item in required if item not in text]
+    if missing:
+        raise RuntimeError("vtwin.cpp lifecycle integration missing: " + ", ".join(missing))
 
-
-def patch_defaults() -> None:
-    path = ROOT / "teraterm" / "ttpset" / "ttset.c"
-    text = read_text_preserve_newlines(path)
-    old = 'ts->AutoWinClose = GetOnOff(Section, "AutoWinClose", FName, TRUE);'
-    new = 'ts->AutoWinClose = GetOnOff(Section, "AutoWinClose", FName, FALSE);'
-    text = replace_once(text, old, new, "AutoWinClose default")
-    write_text_preserve_newlines(path, text)
+    write_text(path, text)
 
 
 def verify() -> None:
-    vtwin = read_text_preserve_newlines(ROOT / "teraterm" / "teraterm" / "vtwin.cpp")
-    vtwin_h = read_text_preserve_newlines(ROOT / "teraterm" / "teraterm" / "vtwin.h")
-    ttset = read_text_preserve_newlines(ROOT / "teraterm" / "ttpset" / "ttset.c")
+    vtwin = read_text(ROOT / "teraterm" / "teraterm" / "vtwin.cpp")
+    vtwin_h = read_text(ROOT / "teraterm" / "teraterm" / "vtwin.h")
+    ttset = read_text(ROOT / "teraterm" / "ttpset" / "ttset.c")
 
     checks = [
-        ('#include "session_state.h"' in vtwin, "session state header not included"),
-        ("A transport ending must never destroy the terminal window." in vtwin, "disconnect path not patched"),
+        (vtwin.count('#include "session_state.h"') == 1, "session_state include must appear exactly once"),
         ("ConsumeDisconnectOrigin(" in vtwin, "disconnect origin is not consumed"),
         ("session_state_ = transition.next" in vtwin, "session transition is not stored"),
         ("Disconnect(BOOL confirm, DisconnectOrigin origin)" in vtwin, "disconnect origin is not accepted"),
@@ -192,7 +106,7 @@ def verify() -> None:
         ("SessionState session_state_ = SessionState::Idle" in vtwin_h, "per-window session state missing"),
         ("DisconnectOrigin pending_disconnect_origin_ = DisconnectOrigin::None" in vtwin_h, "pending origin missing"),
         ("PortType != IdTCPIP && ts.ClearScreenOnCloseConnection" in vtwin, "TCP scrollback can still be cleared"),
-        ('GetOnOff(Section, "AutoWinClose", FName, FALSE)' in ttset, "AutoWinClose still defaults on"),
+        ('GetOnOff(Section, "AutoWinClose", FName, FALSE)' in ttset, "AutoWinClose still defaults off"),
     ]
     failures = [message for ok, message in checks if not ok]
     if failures:
@@ -202,9 +116,8 @@ def verify() -> None:
 def main() -> int:
     patch_vtwin_header()
     patch_vtwin()
-    patch_defaults()
     verify()
-    print("Boooyah session lifecycle patch applied and verified")
+    print("Boooyah session lifecycle source is idempotent and verified")
     return 0
 
 
