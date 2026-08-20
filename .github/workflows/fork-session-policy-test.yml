@@ -30,3 +30,12 @@ jobs:
       - name: Run session policy test
         shell: cmd
         run: session_state_test.exe
+      - name: Build session bar policy test
+        shell: cmd
+        run: |
+          cl /nologo /std:c++17 /EHsc /W4 /WX ^
+            teraterm\teraterm\session_bar_model_test.cpp ^
+            /Fe:session_bar_model_test.exe
+      - name: Run session bar policy test
+        shell: cmd
+        run: session_bar_model_test.exe
