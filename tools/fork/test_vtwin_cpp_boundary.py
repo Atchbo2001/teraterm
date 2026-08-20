@@ -7,6 +7,7 @@ VTWIN_H = ROOT / "teraterm" / "teraterm" / "vtwin.h"
 VTWIN_CPP = ROOT / "teraterm" / "teraterm" / "vtwin.cpp"
 
 # Regression guards for C/C++ compatibility and switch scopes introduced by Boooyah session state.
+# IdComEndTimer initializes C++ disconnect state, so its switch arm must remain explicitly braced.
 
 def main() -> int:
     header = VTWIN_H.read_text(encoding="utf-8-sig")
