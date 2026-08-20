@@ -39,3 +39,12 @@ jobs:
       - name: Run session bar policy test
         shell: cmd
         run: session_bar_model_test.exe
+      - name: Build Quick Connect policy test
+        shell: cmd
+        run: |
+          cl /nologo /std:c++17 /EHsc /W4 /WX ^
+            teraterm\teraterm\boooyah_home_model_test.cpp ^
+            /Fe:boooyah_home_model_test.exe
+      - name: Run Quick Connect policy test
+        shell: cmd
+        run: boooyah_home_model_test.exe
