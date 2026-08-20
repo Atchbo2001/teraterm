@@ -20,6 +20,8 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+      - name: Verify VT C/C++ boundary
+        run: python tools/fork/test_vtwin_cpp_boundary.py
       - name: Build session policy test
         shell: cmd
         run: |
