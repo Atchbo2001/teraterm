@@ -120,6 +120,7 @@
 #include "../ttpset/ttset.h"
 #include "commentdlg.h"
 #include "ttdup.h"
+#include "session_state.h"
 
 #include <initguid.h>
 #if _MSC_VER < 1600
@@ -3083,17 +3084,17 @@ void CVTWindow::OnTimer(UINT_PTR nIDEvent)
 				((ts.PortFlag & PF_BEEPONCONNECT) != 0)) {
 				MessageBeep(0);
 			}
-			if ((PortType==IdTCPIP) &&
-				(ts.AutoWinClose>0) &&
-				::IsWindowEnabled(HVTWin) &&
-				((HTEKWin==NULL) || ::IsWindowEnabled(HTEKWin)) ) {
-				OnClose();
+			// A transport ending must never destroy the terminal window.
+			// Preserve TCP/SSH scrollback and move into a recoverable disconnected state.
+			if (PortType == IdTCPIP) {
+				const SessionTransition transition = HandleDisconnect(
+					Connecting ? SessionState::Connecting : SessionState::Connected,
+					DisconnectOrigin::RemoteOrNetwork);
+				(void)transition;
 			}
-			else {
-				ChangeTitle();
-				if (ts.ClearScreenOnCloseConnection) {
-					OnEditClearScreen();
-				}
+			ChangeTitle();
+			if (PortType != IdTCPIP && ts.ClearScreenOnCloseConnection) {
+				OnEditClearScreen();
 			}
 			break;
 		case IdPrnStartTimer:
