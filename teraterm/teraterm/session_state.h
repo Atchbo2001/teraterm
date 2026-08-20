@@ -48,3 +48,10 @@ inline SessionTransition HandleDisconnect(SessionState current, DisconnectOrigin
 
     return transition;
 }
+
+inline DisconnectOrigin ConsumeDisconnectOrigin(DisconnectOrigin *pending, DisconnectOrigin fallback)
+{
+    const DisconnectOrigin origin = *pending == DisconnectOrigin::None ? fallback : *pending;
+    *pending = DisconnectOrigin::None;
+    return origin;
+}
