@@ -5,10 +5,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 VTWIN_H = ROOT / "teraterm" / "teraterm" / "vtwin.h"
 VTWIN_CPP = ROOT / "teraterm" / "teraterm" / "vtwin.cpp"
+PROJECT_DIR = ROOT / "teraterm" / "teraterm"
 
 # Regression guards for C/C++ compatibility and switch scopes introduced by Boooyah session state.
 # IdComEndTimer initializes C++ disconnect state, so its switch arm must remain explicitly braced.
-# Keep this guard alongside the real Windows build so future UI work cannot reintroduce either boundary bug.
+# The native Windows projects must also compile session_bar.cpp or vtwin.cpp links with unresolved SessionBar symbols.
 
 def main() -> int:
     header = VTWIN_H.read_text(encoding="utf-8-sig")
@@ -31,7 +32,13 @@ def main() -> int:
             "IdComEndTimer must use a braced switch scope before initializing disconnect-origin locals"
         )
 
-    print("vtwin C/C++ and switch-scope boundaries are safe")
+    for version in ("v16", "v17", "v18"):
+        project = PROJECT_DIR / f"ttermpro.{version}.vcxproj"
+        project_text = project.read_text(encoding="utf-8-sig")
+        if '<ClCompile Include="session_bar.cpp" />' not in project_text:
+            raise AssertionError(f"{project.name} must compile session_bar.cpp")
+
+    print("vtwin C/C++ boundaries, timer scope, and Windows project membership are safe")
     return 0
 
 
