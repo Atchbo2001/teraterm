@@ -2,25 +2,13 @@ name: Apply modern session bootstrap
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feature/modern-session-ui
-    paths:
-      - .github/workflows/apply-modern-session-patch.yml
-      - tools/fork/apply_modern_session_patch.py
-  pull_request:
-    branches:
-      - main
-    paths:
-      - .github/workflows/apply-modern-session-patch.yml
-      - tools/fork/apply_modern_session_patch.py
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.repository == 'Atchbo2001/teraterm' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: github.repository == 'Atchbo2001/teraterm'
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v5
@@ -32,19 +20,15 @@ jobs:
         shell: pwsh
         run: python tools/fork/apply_modern_session_patch.py
 
-      - name: Validate changed files
+      - name: Validate and commit source changes when needed
         shell: bash
         run: |
           git -c core.whitespace=cr-at-eol diff --check
-          git diff -- teraterm/teraterm/vtwin.cpp teraterm/ttpset/ttset.c
           if git diff --quiet -- teraterm/teraterm/vtwin.cpp teraterm/ttpset/ttset.c; then
-            echo 'Expected source changes were not produced.' >&2
-            exit 1
+            echo 'Modern session source patch is already applied.'
+            exit 0
           fi
-
-      - name: Commit actual source changes
-        shell: bash
-        run: |
+          git diff -- teraterm/teraterm/vtwin.cpp teraterm/ttpset/ttset.c
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- teraterm/teraterm/vtwin.cpp teraterm/ttpset/ttset.c
