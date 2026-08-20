@@ -9,6 +9,7 @@ on:
       - .github/workflows/apply-boooyah-session-bar.yml
       - tools/fork/apply_boooyah_session_bar.py
       - tools/fork/fix_boooyah_timer_scope.py
+      - tools/fork/fix_boooyah_vcxproj_membership.py
 
 permissions:
   contents: write
@@ -27,18 +28,19 @@ jobs:
         run: |
           python tools/fork/apply_boooyah_session_bar.py
           python tools/fork/fix_boooyah_timer_scope.py
+          python tools/fork/fix_boooyah_vcxproj_membership.py
       - name: Validate and commit source
         shell: bash
         run: |
           git -c core.whitespace=cr-at-eol diff --check
-          if git diff --quiet -- teraterm/common/tt_res.h teraterm/teraterm/CMakeLists.txt teraterm/teraterm/vtwin.h teraterm/teraterm/vtwin.cpp; then
+          if git diff --quiet -- teraterm/common/tt_res.h teraterm/teraterm/CMakeLists.txt teraterm/teraterm/vtwin.h teraterm/teraterm/vtwin.cpp teraterm/teraterm/ttermpro.v16.vcxproj teraterm/teraterm/ttermpro.v17.vcxproj teraterm/teraterm/ttermpro.v18.vcxproj; then
             echo 'Boooyah session bar source is already applied.'
             exit 0
           fi
-          git diff -- teraterm/common/tt_res.h teraterm/teraterm/CMakeLists.txt teraterm/teraterm/vtwin.h teraterm/teraterm/vtwin.cpp
+          git diff -- teraterm/common/tt_res.h teraterm/teraterm/CMakeLists.txt teraterm/teraterm/vtwin.h teraterm/teraterm/vtwin.cpp teraterm/teraterm/ttermpro.v16.vcxproj teraterm/teraterm/ttermpro.v17.vcxproj teraterm/teraterm/ttermpro.v18.vcxproj
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- teraterm/common/tt_res.h teraterm/teraterm/CMakeLists.txt teraterm/teraterm/vtwin.h teraterm/teraterm/vtwin.cpp
-          git commit -m 'fix: scope Boooyah disconnect timer case'
+          git add -- teraterm/common/tt_res.h teraterm/teraterm/CMakeLists.txt teraterm/teraterm/vtwin.h teraterm/teraterm/vtwin.cpp teraterm/teraterm/ttermpro.v16.vcxproj teraterm/teraterm/ttermpro.v17.vcxproj teraterm/teraterm/ttermpro.v18.vcxproj
+          git commit -m 'fix: compile Boooyah session bar in Visual Studio projects'
           git pull --rebase origin feature/modern-session-ui
           git push origin HEAD:feature/modern-session-ui
