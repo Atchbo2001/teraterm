@@ -31,6 +31,7 @@
 
 #include "addsetting.h"
 #include "session_state.h"
+#include "session_bar.h"
 
 #ifdef __cplusplus
 #include "tipwin.h"
@@ -87,6 +88,8 @@ private:
 	BOOL isClosing;		// TRUE=ウィンドウクローズ中(WM_DESTROYを受信した)
 	SessionState session_state_ = SessionState::Idle;
 	DisconnectOrigin pending_disconnect_origin_ = DisconnectOrigin::None;
+	DisconnectOrigin last_disconnect_origin_ = DisconnectOrigin::None;
+	SessionBar session_bar_;
 
 public:
 	CVTWindow(HINSTANCE hInstance);
@@ -103,6 +106,10 @@ public:
 	void Startup();
 	void OpenTEK();
 	void Disconnect(BOOL confirm, DisconnectOrigin origin = DisconnectOrigin::UserRequested);
+	void UpdateSessionBar();
+	void OnFileReconnect();
+	void OnFileChangeServer();
+	void OnFileProfiles();
 
 protected:
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);

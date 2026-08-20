@@ -1,4 +1,4 @@
-﻿project("teraterm")
+project("teraterm")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../libs/lib_SFMT.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../libs/lib_oniguruma.cmake)
@@ -77,6 +77,9 @@ add_executable(
   vtdraw.h
   vtterm.c
   vtterm.h
+  session_bar.cpp
+  session_bar.h
+  session_bar_model.h
   vtwin.cpp
   vtwin.h
   winjump.c
