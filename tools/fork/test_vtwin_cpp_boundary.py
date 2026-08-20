@@ -10,6 +10,7 @@ PROJECT_DIR = ROOT / "teraterm" / "teraterm"
 # Regression guards for C/C++ compatibility and switch scopes introduced by Boooyah session state.
 # IdComEndTimer initializes C++ disconnect state, so its switch arm must remain explicitly braced.
 # The native Windows projects must also compile session_bar.cpp or vtwin.cpp links with unresolved SessionBar symbols.
+# windows.h defines max as a function-like macro unless NOMINMAX is set, so bare std::max(...) is not safe here.
 # Keep this guard on the PR-authored head so GitHub runs the real Windows checks after bot source integration.
 
 def main() -> int:
@@ -33,13 +34,19 @@ def main() -> int:
             "IdComEndTimer must use a braced switch scope before initializing disconnect-origin locals"
         )
 
+    session_bar_source = (PROJECT_DIR / "session_bar.cpp").read_text(encoding="utf-8-sig")
+    if "std::max(" in session_bar_source:
+        raise AssertionError(
+            "session_bar.cpp must use the macro-safe (std::max)(...) form because windows.h defines max"
+        )
+
     for version in ("v16", "v17", "v18"):
         project = PROJECT_DIR / f"ttermpro.{version}.vcxproj"
         project_text = project.read_text(encoding="utf-8-sig")
         if '<ClCompile Include="session_bar.cpp" />' not in project_text:
             raise AssertionError(f"{project.name} must compile session_bar.cpp")
 
-    print("vtwin C/C++ boundaries, timer scope, and Windows project membership are safe")
+    print("vtwin C/C++ boundaries, timer scope, Windows max safety, and project membership are safe")
     return 0
 
 
