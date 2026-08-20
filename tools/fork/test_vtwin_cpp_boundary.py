@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 VTWIN = ROOT / "teraterm" / "teraterm" / "vtwin.h"
 
+# Regression guard: vtwin.h is intentionally consumable from both C and C++ sources.
 
 def main() -> int:
     text = VTWIN.read_text(encoding="utf-8-sig")
