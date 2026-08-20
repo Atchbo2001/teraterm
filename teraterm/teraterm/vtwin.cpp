@@ -121,7 +121,6 @@
 #include "commentdlg.h"
 #include "ttdup.h"
 #include "session_state.h"
-#include "session_state.h"
 
 #include <initguid.h>
 #if _MSC_VER < 1600
