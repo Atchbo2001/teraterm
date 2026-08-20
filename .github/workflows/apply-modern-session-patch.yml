@@ -37,10 +37,10 @@ jobs:
         run: |
           git -c core.whitespace=cr-at-eol diff --check
           git diff -- teraterm/teraterm/vtwin.cpp teraterm/ttpset/ttset.c
-          git diff --quiet -- teraterm/teraterm/vtwin.cpp teraterm/ttpset/ttset.c && {
+          if git diff --quiet -- teraterm/teraterm/vtwin.cpp teraterm/ttpset/ttset.c; then
             echo 'Expected source changes were not produced.' >&2
             exit 1
-          }
+          fi
 
       - name: Commit actual source changes
         shell: bash
