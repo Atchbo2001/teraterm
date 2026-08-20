@@ -6,13 +6,27 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
+def detect_encoding(path: pathlib.Path) -> str:
+    data = path.read_bytes()
+    if data.startswith(b"\xef\xbb\xbf"):
+        return "utf-8-sig"
+    try:
+        data.decode("utf-8")
+        return "utf-8"
+    except UnicodeDecodeError:
+        data.decode("cp932")
+        return "cp932"
+
+
 def read_text(path: pathlib.Path) -> str:
-    with path.open("r", encoding="utf-8-sig", newline="") as f:
+    encoding = detect_encoding(path)
+    with path.open("r", encoding=encoding, newline="") as f:
         return f.read()
 
 
 def write_text(path: pathlib.Path, text: str) -> None:
-    with path.open("w", encoding="utf-8", newline="") as f:
+    encoding = detect_encoding(path)
+    with path.open("w", encoding=encoding, newline="") as f:
         f.write(text)
 
 
