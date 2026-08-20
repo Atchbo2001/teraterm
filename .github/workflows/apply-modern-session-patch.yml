@@ -7,6 +7,7 @@ on:
       - feature/modern-session-ui
     paths:
       - .github/workflows/apply-modern-session-patch.yml
+      - tools/fork/apply_modern_session_patch.py
 
 permissions:
   contents: write
