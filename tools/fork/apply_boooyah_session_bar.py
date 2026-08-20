@@ -61,9 +61,16 @@ def patch_vtwin_header() -> None:
     text = read_text(path)
     nl = "\r\n" if "\r\n" in text else "\n"
 
-    include_anchor = f'#include "session_state.h"{nl}'
-    include_new = include_anchor + f'#include "session_bar.h"{nl}'
-    text = replace_once(text, include_anchor, include_new, "session bar include")
+    cpp_guard = f'#ifdef __cplusplus{nl}'
+    cpp_includes = f'#include "session_state.h"{nl}#include "session_bar.h"{nl}'
+    if cpp_includes in text and text.find(cpp_includes) < text.find(cpp_guard):
+        text = text.replace(cpp_includes, "", 1)
+        text = text.replace(cpp_guard, cpp_guard + cpp_includes, 1)
+    elif cpp_includes not in text:
+        state_include = f'#include "session_state.h"{nl}'
+        if state_include in text and text.find(state_include) < text.find(cpp_guard):
+            text = text.replace(state_include, "", 1)
+        text = text.replace(cpp_guard, cpp_guard + cpp_includes, 1)
 
     field_anchor = f'\tDisconnectOrigin pending_disconnect_origin_ = DisconnectOrigin::None;{nl}'
     field_new = field_anchor + nl.join([
@@ -231,9 +238,12 @@ def verify() -> None:
     vtwin_h = read_text(ROOT / "teraterm" / "teraterm" / "vtwin.h")
     ids = read_text(ROOT / "teraterm" / "common" / "tt_res.h")
     cmake = read_text(ROOT / "teraterm" / "teraterm" / "CMakeLists.txt")
+    cpp_guard = vtwin_h.find("#ifdef __cplusplus")
     checks = [
         ("ID_FILE_RECONNECT               50113" in ids, "reconnect command id missing"),
         ("SessionBar session_bar_" in vtwin_h, "session bar member missing"),
+        (vtwin_h.find('#include "session_state.h"') > cpp_guard >= 0, "session state include leaks into C translation units"),
+        (vtwin_h.find('#include "session_bar.h"') > cpp_guard >= 0, "session bar include leaks into C translation units"),
         ("session_bar_.Create(HVTWin)" in vtwin, "session bar not created"),
         ("UpdateSessionBar();" in vtwin, "session bar update missing"),
         ("void CVTWindow::OnFileReconnect()" in vtwin, "reconnect handler missing"),
