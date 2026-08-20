@@ -470,6 +470,7 @@
     <ClCompile Include="vtdisp.c" />
     <ClCompile Include="vtdraw.cpp" />
     <ClCompile Include="vtterm.c" />
+    <ClCompile Include="session_bar.cpp" />
     <ClCompile Include="vtwin.cpp" />
     <ClCompile Include="winjump.c" />
     <ClCompile Include="win_pp.cpp" />

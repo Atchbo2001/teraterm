@@ -32,6 +32,8 @@
 #include "addsetting.h"
 
 #ifdef __cplusplus
+#include "session_state.h"
+#include "session_bar.h"
 #include "tipwin.h"
 #include "tmfc.h"
 #include "unicode_test.h"
@@ -84,6 +86,10 @@ private:
 	// 状態
 	BOOL isSizing;		// サイズ変更中(WM_SIZING 〜 WM_EXITSIZEMOVE)はTRUE
 	BOOL isClosing;		// TRUE=ウィンドウクローズ中(WM_DESTROYを受信した)
+	SessionState session_state_ = SessionState::Idle;
+	DisconnectOrigin pending_disconnect_origin_ = DisconnectOrigin::None;
+	DisconnectOrigin last_disconnect_origin_ = DisconnectOrigin::None;
+	SessionBar session_bar_;
 
 public:
 	CVTWindow(HINSTANCE hInstance);
@@ -99,7 +105,11 @@ public:
 	void SetupTerm();
 	void Startup();
 	void OpenTEK();
-	void Disconnect(BOOL confirm);
+	void Disconnect(BOOL confirm, DisconnectOrigin origin = DisconnectOrigin::UserRequested);
+	void UpdateSessionBar();
+	void OnFileReconnect();
+	void OnFileChangeServer();
+	void OnFileProfiles();
 
 protected:
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);

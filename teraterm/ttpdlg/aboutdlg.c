@@ -53,6 +53,7 @@
 #include "SFMT_version_for_teraterm.h"
 
 #include "ttdlg.h"
+#include "boooyah_branding.h"
 
 #undef EFFECT_ENABLED	// エフェクトの有効可否
 #undef TEXTURE_ENABLED	// テクスチャの有効可否
@@ -309,6 +310,8 @@ static INT_PTR CALLBACK AboutDlg(HWND Dialog, UINT Message, WPARAM wParam, LPARA
 			}
 
 			SetDlgTextsW(Dialog, TextInfos, _countof(TextInfos), ts.UILanguageFileW);
+			SetWindowTextW(Dialog, L"About Boooyah");
+			SetDlgItemTextW(Dialog, IDC_TT_PRO, BOOOYAH_PRODUCT_NAME_W);
 
 			// Tera Term 本体のバージョン
 			_snprintf_s(buf, sizeof(buf), _TRUNCATE, "Version %d.%d.%d ",

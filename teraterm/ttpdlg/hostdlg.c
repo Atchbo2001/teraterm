@@ -53,6 +53,7 @@
 #include "edithistory.h"
 
 #include "ttdlg.h"
+#include "boooyah_branding.h"
 
 static const char *ProtocolFamilyList[] = { "AUTO", "IPv6", "IPv4", NULL };
 
@@ -143,6 +144,7 @@ static INT_PTR CALLBACK HostDlg(HWND Dialog, UINT Message, WPARAM wParam, LPARAM
 			dlg_data->HostDropOpen = FALSE;
 
 			SetDlgTextsW(Dialog, TextInfos, _countof(TextInfos), ts.UILanguageFileW);
+			SetWindowTextW(Dialog, L"Boooyah: Quick Connect");
 
 			// ファイルおよび名前付きパイプの場合、TCP/IP扱いとする。
 			if ( GetHNRec->PortType==IdFile ||

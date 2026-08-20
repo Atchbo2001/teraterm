@@ -966,7 +966,7 @@ void PASCAL _ReadIniFile(const wchar_t *FName, PTTSet ts)
 		GetPrivateProfileInt(Section, "TCPPort", ts->TelPort, FName);
 
 	/* Auto window close flag */
-	ts->AutoWinClose = GetOnOff(Section, "AutoWinClose", FName, TRUE);
+	ts->AutoWinClose = GetOnOff(Section, "AutoWinClose", FName, FALSE);
 
 	/* History list */
 	ts->HistoryList = GetOnOff(Section, "HistoryList", FName, FALSE);

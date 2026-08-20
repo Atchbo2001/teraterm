@@ -278,6 +278,9 @@
 #define ID_FILE_NEWCONNECTION           50110
 #define ID_FILE_DUPLICATESESSION        50111
 #define ID_FILE_CYGWINCONNECTION        50112
+#define ID_FILE_RECONNECT               50113
+#define ID_FILE_CHANGESERVER            50114
+#define ID_FILE_PROFILES                50115
 #define ID_FILE_LOG                     50120
 #define ID_FILE_COMMENTTOLOG            50121
 #define ID_FILE_VIEWLOG                 50122

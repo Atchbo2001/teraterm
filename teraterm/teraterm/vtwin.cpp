@@ -120,6 +120,8 @@
 #include "../ttpset/ttset.h"
 #include "commentdlg.h"
 #include "ttdup.h"
+#include "session_state.h"
+#include "boooyah_branding.h"
 
 #include <initguid.h>
 #if _MSC_VER < 1600
@@ -388,7 +390,7 @@ public:
 						if (pDevHdr->dbch_devicetype == DBT_DEVTYP_PORT) {
 							if (comport == cv.ComPort) {
 								SetAutoConnectPort(ts.ComPort);
-								vtwin_->Disconnect(TRUE);
+								vtwin_->Disconnect(TRUE, DisconnectOrigin::RemoteOrNetwork);
 								disconnected = TRUE;
 							}
 						}
@@ -402,7 +404,7 @@ public:
 							//  - DBT_DEVTYP_PORT
 							if (CheckComPort(cv.ComPort) == 0) {
 								/* オープンしているポートが無効になった,クローズする */
-								vtwin_->Disconnect(TRUE);
+								vtwin_->Disconnect(TRUE, DisconnectOrigin::RemoteOrNetwork);
 								SetAutoConnectPort(ts.ComPort);
 							}
 						}
@@ -752,12 +754,14 @@ CVTWindow::CVTWindow(HINSTANCE hInstance)
 		rect.right = rect.left + 100;
 		rect.bottom = rect.top + 100;
 	}
-	CreateW(hInstance, VTClassName, L"Tera Term", Style, rect, NULL, NULL);
+	CreateW(hInstance, VTClassName, BOOOYAH_PRODUCT_NAME_W, Style, rect, NULL, NULL);
 
 	/*--------- Init2 -----------------*/
 	HVTWin = GetSafeHwnd();
 	if (HVTWin == NULL) return;
 	cv.HWin = HVTWin;
+	session_bar_.Create(HVTWin);
+	UpdateSessionBar();
 	vt_src = InitDisp(HVTWin, &ts);
 	BGLoadThemeFile(vt_src, &ts);
 
@@ -2769,6 +2773,15 @@ void CVTWindow::OnSize(WPARAM nType, int cx, int cy)
 		ts.TerminalOldHeight = ts.TerminalHeight;
 	}
 
+	const UINT boooyah_dpi = GetMonitorDpiFromWindow(HVTWin);
+	session_bar_.Layout(cx, cy, boooyah_dpi);
+	if (session_bar_.IsVisible()) {
+		const int bar_height = session_bar_.HeightForDpi(boooyah_dpi);
+		if (cy > bar_height) {
+			cy -= bar_height;
+		}
+	}
+
 	::GetWindowRect(HVTWin,&R);
 	w = R.right - R.left;
 	h = R.bottom - R.top;
@@ -3066,7 +3079,7 @@ void CVTWindow::OnTimer(UINT_PTR nIDEvent)
 		case IdDblClkTimer:
 			AfterDblClk = FALSE;
 			break;
-		case IdComEndTimer:
+		case IdComEndTimer: {
 			if (! CommCanClose(&cv)) {
 				// wait if received data remains
 				::SetTimer(m_hWnd, IdComEndTimer,1,NULL);
@@ -3083,19 +3096,20 @@ void CVTWindow::OnTimer(UINT_PTR nIDEvent)
 				((ts.PortFlag & PF_BEEPONCONNECT) != 0)) {
 				MessageBeep(0);
 			}
-			if ((PortType==IdTCPIP) &&
-				(ts.AutoWinClose>0) &&
-				::IsWindowEnabled(HVTWin) &&
-				((HTEKWin==NULL) || ::IsWindowEnabled(HTEKWin)) ) {
-				OnClose();
-			}
-			else {
-				ChangeTitle();
-				if (ts.ClearScreenOnCloseConnection) {
-					OnEditClearScreen();
-				}
+			// A transport ending must never destroy the terminal window.
+			// Preserve TCP/SSH scrollback and move into a recoverable disconnected state.
+			const DisconnectOrigin origin = ConsumeDisconnectOrigin(
+				&pending_disconnect_origin_, DisconnectOrigin::RemoteOrNetwork);
+			const SessionTransition transition = HandleDisconnect(session_state_, origin);
+			session_state_ = transition.next;
+			last_disconnect_origin_ = origin;
+			ChangeTitle();
+			UpdateSessionBar();
+			if (PortType != IdTCPIP && ts.ClearScreenOnCloseConnection) {
+				OnEditClearScreen();
 			}
 			break;
+		}
 		case IdPrnStartTimer:
 			PrnFileStart(PrintFile_);
 			break;
@@ -3681,12 +3695,16 @@ LRESULT CVTWindow::OnCommOpen(WPARAM wParam, LPARAM lParam)
 	CommStart(&cv,lParam,&ts);
 	if (ts.PortType == IdTCPIP && cv.RetryWithOtherProtocol == TRUE) {
 		Connecting = TRUE;
+		session_state_ = SessionState::Connecting;
 	}
 	else {
 		Connecting = FALSE;
+		session_state_ = SessionState::Connected;
 	}
+	last_disconnect_origin_ = DisconnectOrigin::None;
 
 	ChangeTitle();
+	UpdateSessionBar();
 	if (! cv.Ready) {
 		return 0;
 	}
@@ -4517,7 +4535,44 @@ void CVTWindow::OnFilePrint()
 	BuffPrint(FALSE);
 }
 
-void CVTWindow::Disconnect(BOOL confirm)
+void CVTWindow::UpdateSessionBar()
+{
+	SessionBarModel model;
+	model.state = session_state_;
+	model.origin = last_disconnect_origin_;
+	model.logging = FLogIsOpend() != 0;
+	session_bar_.Update(model);
+	RECT client;
+	if (::GetClientRect(HVTWin, &client)) {
+		session_bar_.Layout(client.right - client.left, client.bottom - client.top, GetMonitorDpiFromWindow(HVTWin));
+	}
+}
+
+void CVTWindow::OnFileReconnect()
+{
+	if (Connecting || cv.Ready) {
+		return;
+	}
+	pending_disconnect_origin_ = DisconnectOrigin::None;
+	last_disconnect_origin_ = DisconnectOrigin::None;
+	session_state_ = SessionState::Connecting;
+	Connecting = TRUE;
+	ChangeTitle();
+	UpdateSessionBar();
+	CommOpen(HVTWin, &ts, &cv);
+}
+
+void CVTWindow::OnFileChangeServer()
+{
+	OnFileNewConnection();
+}
+
+void CVTWindow::OnFileProfiles()
+{
+	OnFileNewConnection();
+}
+
+void CVTWindow::Disconnect(BOOL confirm, DisconnectOrigin origin)
 {
 	if (! cv.Ready) {
 		return;
@@ -4538,6 +4593,8 @@ void CVTWindow::Disconnect(BOOL confirm)
 		}
 	}
 
+	pending_disconnect_origin_ = origin;
+	session_state_ = SessionState::Disconnecting;
 	::PostMessage(HVTWin, WM_USER_COMMNOTIFY, 0, FD_CLOSE);
 }
 
@@ -5563,6 +5620,9 @@ LRESULT CVTWindow::Proc(UINT msg, WPARAM wp, LPARAM lp)
 		const WORD wID = GET_WM_COMMAND_ID(wp, lp);
 		switch (wID) {
 		case ID_FILE_NEWCONNECTION: OnFileNewConnection(); break;
+		case ID_FILE_RECONNECT: OnFileReconnect(); break;
+		case ID_FILE_CHANGESERVER: OnFileChangeServer(); break;
+		case ID_FILE_PROFILES: OnFileProfiles(); break;
 		case ID_FILE_DUPLICATESESSION: OnDuplicateSession(); break;
 		case ID_FILE_CYGWINCONNECTION: OnCygwinConnection(); break;
 		case ID_FILE_TERATERMMENU: OnTTMenuLaunch(); break;

@@ -1,0 +1,57 @@
+name: Apply Boooyah branding
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/modern-session-ui
+    paths:
+      - .github/workflows/apply-boooyah-branding.yml
+      - tools/fork/apply_boooyah_branding.py
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-boooyah-branding.yml
+      - tools/fork/apply_boooyah_branding.py
+
+permissions:
+  contents: write
+
+jobs:
+  apply_branding:
+    if: github.repository == 'Atchbo2001/teraterm' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: feature/modern-session-ui
+          fetch-depth: 0
+
+      - name: Apply Boooyah branding
+        shell: pwsh
+        run: python tools/fork/apply_boooyah_branding.py
+
+      - name: Validate branded source
+        shell: bash
+        run: |
+          git -c core.whitespace=cr-at-eol diff --check
+          if git diff --quiet -- teraterm/teraterm/vtwin.cpp teraterm/teraterm/CMakeLists.txt teraterm/teraterm/ttermpro.rc teraterm/teraterm/filesys_log.rc teraterm/ttpdlg/hostdlg.c teraterm/ttpdlg/aboutdlg.c teraterm/ttpdlg/ttpdlg.rc; then
+            echo 'Boooyah branding source is already applied.'
+          else
+            git diff -- teraterm/teraterm/vtwin.cpp teraterm/teraterm/CMakeLists.txt teraterm/teraterm/ttermpro.rc teraterm/teraterm/filesys_log.rc teraterm/ttpdlg/hostdlg.c teraterm/ttpdlg/aboutdlg.c teraterm/ttpdlg/ttpdlg.rc
+          fi
+
+      - name: Commit branded source
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          if git diff --quiet -- teraterm/teraterm/vtwin.cpp teraterm/teraterm/CMakeLists.txt teraterm/teraterm/ttermpro.rc teraterm/teraterm/filesys_log.rc teraterm/ttpdlg/hostdlg.c teraterm/ttpdlg/aboutdlg.c teraterm/ttpdlg/ttpdlg.rc; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- teraterm/teraterm/vtwin.cpp teraterm/teraterm/CMakeLists.txt teraterm/teraterm/ttermpro.rc teraterm/teraterm/filesys_log.rc teraterm/ttpdlg/hostdlg.c teraterm/ttpdlg/aboutdlg.c teraterm/ttpdlg/ttpdlg.rc
+          git commit -m 'feat: apply Boooyah user-facing branding'
+          git pull --rebase origin feature/modern-session-ui
+          git push origin HEAD:feature/modern-session-ui
