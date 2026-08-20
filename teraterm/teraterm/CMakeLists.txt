@@ -12,6 +12,7 @@ add_executable(
   WSAAsyncGetAddrInfo.h
   broadcast.cpp
   broadcast.h
+  boooyah_branding.h
   buffer.c
   buffer.h
   charset.cpp

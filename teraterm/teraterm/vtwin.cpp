@@ -121,6 +121,7 @@
 #include "commentdlg.h"
 #include "ttdup.h"
 #include "session_state.h"
+#include "boooyah_branding.h"
 
 #include <initguid.h>
 #if _MSC_VER < 1600
@@ -753,7 +754,7 @@ CVTWindow::CVTWindow(HINSTANCE hInstance)
 		rect.right = rect.left + 100;
 		rect.bottom = rect.top + 100;
 	}
-	CreateW(hInstance, VTClassName, L"Tera Term", Style, rect, NULL, NULL);
+	CreateW(hInstance, VTClassName, BOOOYAH_PRODUCT_NAME_W, Style, rect, NULL, NULL);
 
 	/*--------- Init2 -----------------*/
 	HVTWin = GetSafeHwnd();
