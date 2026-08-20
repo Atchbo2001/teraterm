@@ -2,6 +2,11 @@ name: Apply modern session bootstrap
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/modern-session-ui
+    paths:
+      - .github/workflows/apply-modern-session-patch.yml
 
 permissions:
   contents: write
