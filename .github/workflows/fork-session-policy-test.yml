@@ -1,0 +1,29 @@
+name: Fork session policy test
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  session_policy_test:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Build session policy test
+        shell: cmd
+        run: |
+          cl /nologo /std:c++17 /EHsc /W4 /WX ^
+            teraterm\teraterm\session_state_test.cpp ^
+            teraterm\teraterm\session_state.cpp ^
+            /Fe:session_state_test.exe
+      - name: Run session policy test
+        shell: cmd
+        run: session_state_test.exe
