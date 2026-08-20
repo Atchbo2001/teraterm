@@ -144,10 +144,10 @@ void SessionBar::Layout(int client_width, int client_height, UINT dpi)
     }
 
     const int height = HeightForDpi(dpi_);
-    const int y = std::max(0, client_height - height);
+    const int y = (std::max)(0, client_height - height);
     const int pad = MulDiv(6, static_cast<int>(dpi_), 96);
     const int gap = MulDiv(4, static_cast<int>(dpi_), 96);
-    const int button_height = std::max(MulDiv(22, static_cast<int>(dpi_), 96), 20);
+    const int button_height = (std::max)(MulDiv(22, static_cast<int>(dpi_), 96), 20);
     const int button_y = y + (height - button_height) / 2;
 
     struct ButtonLayout { HWND hwnd; int width96; };
@@ -170,6 +170,6 @@ void SessionBar::Layout(int client_width, int client_height, UINT dpi)
         x -= gap;
     }
 
-    const int status_width = std::max(0, x - pad);
+    const int status_width = (std::max)(0, x - pad);
     MoveWindow(status_, pad, y, status_width, height, TRUE);
 }
