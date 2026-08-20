@@ -5,6 +5,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 VTWIN = ROOT / "teraterm" / "teraterm" / "vtwin.cpp"
 
+# Keep C++ locals in IdComEndTimer inside an explicit switch-arm scope.
+
 
 def main() -> int:
     with VTWIN.open("r", encoding="utf-8-sig", newline="") as f:
