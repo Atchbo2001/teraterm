@@ -3079,7 +3079,7 @@ void CVTWindow::OnTimer(UINT_PTR nIDEvent)
 		case IdDblClkTimer:
 			AfterDblClk = FALSE;
 			break;
-		case IdComEndTimer:
+		case IdComEndTimer: {
 			if (! CommCanClose(&cv)) {
 				// wait if received data remains
 				::SetTimer(m_hWnd, IdComEndTimer,1,NULL);
@@ -3109,6 +3109,7 @@ void CVTWindow::OnTimer(UINT_PTR nIDEvent)
 				OnEditClearScreen();
 			}
 			break;
+		}
 		case IdPrnStartTimer:
 			PrnFileStart(PrintFile_);
 			break;
